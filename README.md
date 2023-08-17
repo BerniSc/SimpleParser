@@ -1,5 +1,5 @@
 # Parser
-A small Project to explore the QI::SPIRIT parser lib and get into how a simple AST Parser works.<br> 
+A small Project to explore the Boost::qi::spirit and boost::phoenix parser lib and get into how a simple AST Parser works.<br> 
 This example implements a small calculator and its syntax as an EBNF.<br>
 <br>
 <br>
