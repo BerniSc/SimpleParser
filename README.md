@@ -6,10 +6,10 @@ This example implements a small calculator and its syntax as an EBNF.<br>
 It's grammer consists of the following EBNF: <br>
 ``` 
 EBNF of this Grammar:
-    varname = "A" .. "z" , { <alphanumeric> }
-    start = (varname, "=", term) | term
-    term = product, ("+" | "-"), term | product
-    product = (factor, ("*" | "/" | "^"), product) | (factor)
-    factor = group | varname | integer-number
-    group = "(", term, ")"
+      varname = "A" .. "z" , { <alphanumeric> }
+      start = (varname, ("=" | "+=" | "-=" | "*=" | "/=") , term) | term
+      term = product, ("+" | "-"), term | product
+      product = (factor, ("*" | "/" | "^" | "&&" | "||") , product) | (factor)
+      factor = group | varname | double-number
+      group = "(", term, ")"
 ```
