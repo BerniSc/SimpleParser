@@ -62,6 +62,10 @@ public:
             return left->evaluate() / right->evaluate();
         else if (Operator == '^')
             return pow(left->evaluate(), right->evaluate());
+        else if (Operator == 'A')
+            return (bool(left->evaluate()) * bool(right->evaluate()));
+        else if (Operator == 'O')
+            return bool(bool(left->evaluate()) + bool(right->evaluate()));
     }
 
     ~OperatorNode() {
@@ -103,15 +107,34 @@ private:
 };
 
 // Extend abstract Node Interface to specify handling of Equationsymbol
+template<char Operator>
 class AssignmentNode : public ASTNode {
 public:
     //Allowing "Ans" by also storing current Value in identifier, but effectivly only needs to evaluate whole tree as it is Top Node
     AssignmentNode(std::string identifier, const ASTNodePtr& value) : identifier(identifier), value(value) { }
 
     double evaluate() {
-        double v = value->evaluate();
-        variable_map[identifier] = v;
-        return v;
+        if(Operator == '=') {
+            double v = value->evaluate();
+            variable_map[identifier] = v;
+            return v;
+        } else if(Operator == '+') {
+            double v = value->evaluate();
+            variable_map[identifier] += v;
+            return variable_map[identifier];
+        } else if(Operator == '-') {
+            double v = value->evaluate();
+            variable_map[identifier] -= v;
+            return variable_map[identifier];
+        } else if(Operator == '*') {
+            double v = value->evaluate();
+            variable_map[identifier] *= v;
+            return variable_map[identifier];
+        } else if(Operator == '/') {
+            double v = value->evaluate();
+            variable_map[identifier] /= v;
+            return variable_map[identifier];
+        }
     }
 
 private:
@@ -122,12 +145,11 @@ private:
 /******************************************************************************/
 // EBNF of this Grammar:
 //      varname = "A" .. "z" , { <alphanumeric> }
-//      start = (varname, "=", term) | term
+//      start = (varname, ("=" | "+=" | "-=" | "*=" | "/=") , term) | term
 //      term = product, ("+" | "-"), term | product
-//      product = (factor, ("*" | "/" | "^"), product) | (factor)
-//      factor = group | varname | integer-number
+//      product = (factor, ("*" | "/" | "^" | "&&" | "||") , product) | (factor)
+//      factor = group | varname | double-number
 //      group = "(", term, ")"
-// In this case the . "Operator" is used to convert 2 integer to one Double
 
 
 //Acutall Grammar 
@@ -142,8 +164,14 @@ public:
 
         // _val is set through lambdas -> Placeholder for actual value later
 
-        // Start either has to be either varname ('y=') and then Term or just Term;
-        start = (varname >> '=' >> term)[qi::_val = phx::new_<AssignmentNode>(qi::_1, qi::_2)] | term[qi::_val = qi::_1];
+        // Start either has to be either varname (f.e. 'y=') and then Term or just Term;
+        // Also Assignment Operations are allowed like +=, -=, *= and /= 
+        start = (varname >> '=' >> term)[qi::_val = phx::new_<AssignmentNode<'='>>(qi::_1, qi::_2)] | 
+                (varname >> qi::lit("+=") >> term)[qi::_val = phx::new_<AssignmentNode<'+'>>(qi::_1, qi::_2)] |
+                (varname >> qi::lit("-=") >> term)[qi::_val = phx::new_<AssignmentNode<'-'>>(qi::_1, qi::_2)] |
+                (varname >> qi::lit("*=") >> term)[qi::_val = phx::new_<AssignmentNode<'*'>>(qi::_1, qi::_2)] |
+                (varname >> qi::lit("/=") >> term)[qi::_val = phx::new_<AssignmentNode<'/'>>(qi::_1, qi::_2)] |
+                term[qi::_val = qi::_1];
 
         // Term either has to be a Product +/- a Term or it can be just a Product
         term = (product >> '+' >> term)[qi::_val = phx::new_<OperatorNode<'+'> >(qi::_1, qi::_2)] |
@@ -154,10 +182,14 @@ public:
         product = (factor >> '*' >> product)[qi::_val = phx::new_<OperatorNode<'*'> >(qi::_1, qi::_2)] |
             (factor >> '/' >> product)[qi::_val = phx::new_<OperatorNode<'/'> >(qi::_1, qi::_2)] |
             (factor >> '^' >> product)[qi::_val = phx::new_<OperatorNode<'^'> >(qi::_1, qi::_2)] |
+            (factor >> qi::lit("&&") >> product)[qi::_val = phx::new_<OperatorNode<'A'>>(qi::_1, qi::_2)] |
+            (factor >> qi::lit("||") >> product)[qi::_val = phx::new_<OperatorNode<'O'>>(qi::_1, qi::_2)] |
             factor[qi::_val = qi::_1];
 
         // Factor can be a group, a varname or just a regular int
-        factor = group[qi::_val = qi::_1] | varname[qi::_val = phx::new_<VariableNode>(qi::_1)] | qi::double_[qi::_val = phx::new_<ConstantNode>(qi::_1)];
+        factor = group[qi::_val = qi::_1] | 
+            varname[qi::_val = phx::new_<VariableNode>(qi::_1)] | 
+            qi::double_[qi::_val = phx::new_<ConstantNode>(qi::_1)];
 
         //Group is just Brackets with Term in Middle -> Needs to be evaluated later, Therefore has %=
         group %= '(' >> term >> ')';
